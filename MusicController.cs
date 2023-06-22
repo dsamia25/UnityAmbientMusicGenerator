@@ -10,15 +10,25 @@ namespace AmbientMusicGenerator
         public List<MusicPresetObject> Presets = new List<MusicPresetObject>();     // List of preset music mixes.
         public List<Sound> Sounds = new List<Sound>();                              // List of all sounds.
 
+        [Space]
+        [Header("Play Settings")]
+        [Space]
         public bool PlayOnStart = true;                     // True if the controller should start playing automatically in Start().
         public bool AutomaticallyTransitionSongs = true;    // True if the controller should transition between preset songs automatically.
         public bool ShuffleSongs = true;                    // True if the controller should randomly pick presets, false if it should go in order.
+        public bool EnableDebugMessages = true;             // Disable to turn off log messages. Warnings will still be enabled.
         private bool isPlaying = false;
 
+        [Space]
+        [Header("Time Between Transitions")]
+        [Space]
         public bool UseTransitionTrackFrequencyRange = true;
         public Vector2 TransitionTrackFrequencyRange = new Vector2(8f, 12f);     // Range of times to start transitioning songs.
         public float TransitionTrackFrequency = 8f;
 
+        [Space]
+        [Header("Transitions Time")]
+        [Space]
         public bool UseTrackFadeTimeRange = true;                     // If the track transition time should use a random range.
         public Vector2 TrackFadeTimeRange = new Vector2(4f, 8f);      // Range of how long it can take to change tracks.
         public float TrackFadeTime = 3f;                              // How long it takes to change tracks.
@@ -194,51 +204,60 @@ namespace AmbientMusicGenerator
         /// <param name="song"></param>
         public void LoadSong(MusicPresetObject song)
         {
-            foreach (Sound newSound in song.Sounds)
+            if (EnableDebugMessages)
             {
-                bool soundFound = false;
-                foreach (Sound sound in Sounds)
-                {
-                    if (newSound.SoundClip.Equals(sound.SoundClip))
-                    {
-                        // Start transitioning existing sound.
-                        //Debug.Log($"Current song has sound {newSound.Name} (called {sound.Name}).");
-                        StartCoroutine(TransitionValues(sound, newSound, TrackFadeTime));
-                        soundFound = true;
-                        break;
-                    }
-                }
-                if (!soundFound)
-                {
-                    // If this sound is not already in the list of sounds, add it and create an AudioSource.
-                    Debug.Log($"Current song does not have sound {newSound.Name}.");
-                    Sound sound = new Sound(newSound.Name, newSound.SoundClip);
-                    Sounds.Add(sound);
-                    var audioSource = gameObject.AddComponent<AudioSource>();
-                    audioSource.clip = sound.SoundClip;
-                    sound.Source = audioSource;
-                    sound.UpdateSource();
-                    StartCoroutine(TransitionValues(sound, newSound, TrackFadeTime));
-                }
+                Debug.Log($"Loading new song {song.Name}.");
             }
 
-            // Look for sounds in the current song that need to be faded out of the new song.
-            foreach (Sound sound in Sounds)
+            try
             {
-                bool soundFound = false;
                 foreach (Sound newSound in song.Sounds)
                 {
-                    if (newSound.SoundClip.Equals(sound.SoundClip))
+                    bool soundFound = false;
+                    foreach (Sound sound in Sounds)
                     {
-                        soundFound = true;
-                        break;
+                        if (newSound.SoundClip.Equals(sound.SoundClip))
+                        {
+                            // Start transitioning existing sound.
+                            //Debug.Log($"Current song has sound {newSound.Name} (called {sound.Name}).");
+                            StartCoroutine(TransitionValues(sound, newSound, TrackFadeTime));
+                            soundFound = true;
+                            break;
+                        }
+                    }
+                    if (!soundFound)
+                    {
+                        // If this sound is not already in the list of sounds, add it and create an AudioSource.
+                        Sound sound = new Sound(newSound.Name, newSound.SoundClip);
+                        Sounds.Add(sound);
+                        var audioSource = gameObject.AddComponent<AudioSource>();
+                        audioSource.clip = sound.SoundClip;
+                        sound.Source = audioSource;
+                        sound.UpdateSource();
+                        StartCoroutine(TransitionValues(sound, newSound, TrackFadeTime));
                     }
                 }
-                if (!soundFound)
+
+                // Look for sounds in the current song that need to be faded out of the new song.
+                foreach (Sound sound in Sounds)
                 {
-                    Debug.Log($"New song does not have sound {sound.Name}.");
-                    StartCoroutine(TransitionValues(sound, Sound.zeroSound, TrackFadeTime));
+                    bool soundFound = false;
+                    foreach (Sound newSound in song.Sounds)
+                    {
+                        if (newSound.SoundClip.Equals(sound.SoundClip))
+                        {
+                            soundFound = true;
+                            break;
+                        }
+                    }
+                    if (!soundFound)
+                    {
+                        StartCoroutine(TransitionValues(sound, Sound.zeroSound, TrackFadeTime));
+                    }
                 }
+            } catch (Exception e)
+            {
+                Debug.LogWarning($"Error loading song: {e}");
             }
         }
 
@@ -276,7 +295,10 @@ namespace AmbientMusicGenerator
             curr.PitchFadeFrequency = target.PitchFadeFrequency;
             totalTime += Time.deltaTime;
 
-            Debug.Log($"Finished transitioning {curr.Name} in {totalTime} seconds:\n{{\tVolume {startingVolume} -> {curr.Volume} ({target.Volume})\n\tVolume {startingPitch} -> {curr.Pitch} ({target.Pitch})\n}}");
+            if (EnableDebugMessages)
+            {
+                Debug.Log($"Finished transitioning {curr.Name} in {totalTime} seconds:\n{{\tVolume {startingVolume} -> {curr.Volume} (Target {target.Volume})\n\tPitch {startingPitch} -> {curr.Pitch} (Target {target.Pitch})\n}}");
+            }
         }
     }
 }
