@@ -1,13 +1,20 @@
+using System;
+using System.Collections.Generic;
 using UnityEngine;
 
 namespace AmbientMusicGenerator
 {
     public class MusicController : MonoBehaviour
     {
-        public Sound[] Sounds;      // Array of all sounds.
+        public List<MusicPresetObject> Presets = new List<MusicPresetObject>();     // List of preset music mixes.
+        public List<Sound> Sounds = new List<Sound>();                              // List of all sounds.
 
         public bool PlayOnStart = true;
         private bool isPlaying = false;
+
+        public bool IsChangingTrack = false;        
+        public float ChangeTrackTime = 3f;          // How long it takes to change tracks.
+        private float _currChangeTrackTime = 0f;    // Time left to change track.
 
         public void Awake()
         {
@@ -22,6 +29,7 @@ namespace AmbientMusicGenerator
 
         private void Start()
         {
+            // Start music automatically if enabled.
             if (PlayOnStart)
             {
                 Play();
@@ -30,9 +38,15 @@ namespace AmbientMusicGenerator
 
         private void Update()
         {
+            // Updates each audio source of any changes.
             foreach (Sound sound in Sounds)
             {
                 sound.UpdateSource();
+            }
+
+            if (IsChangingTrack)
+            {
+
             }
         }
 
@@ -87,6 +101,54 @@ namespace AmbientMusicGenerator
                 sound.Source.Play();
             }
             isPlaying = true;
+        }
+
+        /// <summary>
+        /// Removes the AudioSource component associated with a specific sound.
+        /// </summary>
+        /// <param name="sound"></param>
+        public void RemoveAudioSource(Sound sound)
+        {
+            try
+            {
+                if (sound.Source != null)
+                {
+                    Destroy(sound.Source);
+                }
+            } catch (Exception e)
+            {
+                Debug.LogWarning($"Error removing AudioSource: {e}");
+            }
+        }
+
+        public void TestLoad()
+        {
+            LoadSong(Presets[0]);
+        }
+
+        /// <summary>
+        /// Switches the 
+        /// </summary>
+        /// <param name="song"></param>
+        public void LoadSong(MusicPresetObject song)
+        {
+            foreach (Sound newSound in song.Sounds)
+            {
+                bool soundFound = false;
+                foreach (Sound sound in Sounds)
+                {
+                    if (newSound.SoundClip.Equals(sound.SoundClip))
+                    {
+                        Debug.Log($"Current song has sound {newSound.Name} (called {sound.Name}).");
+                        soundFound = true;
+                        break;
+                    }
+                }
+                if (!soundFound)
+                {
+                    Debug.Log($"Current sound does not have sound {newSound.Name}.");
+                }
+            }
         }
     }
 }
