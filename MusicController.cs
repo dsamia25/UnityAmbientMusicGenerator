@@ -1,4 +1,5 @@
 using System;
+using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 
@@ -12,9 +13,7 @@ namespace AmbientMusicGenerator
         public bool PlayOnStart = true;
         private bool isPlaying = false;
 
-        public bool IsChangingTrack = false;        
-        public float ChangeTrackTime = 3f;          // How long it takes to change tracks.
-        private float _currChangeTrackTime = 0f;    // Time left to change track.
+        public float TrackTransitionTime = 3f;          // How long it takes to change tracks.
 
         public void Awake()
         {
@@ -42,11 +41,6 @@ namespace AmbientMusicGenerator
             foreach (Sound sound in Sounds)
             {
                 sound.UpdateSource();
-            }
-
-            if (IsChangingTrack)
-            {
-
             }
         }
 
@@ -121,11 +115,6 @@ namespace AmbientMusicGenerator
             }
         }
 
-        public void TestLoad()
-        {
-            LoadSong(Presets[0]);
-        }
-
         /// <summary>
         /// Switches the 
         /// </summary>
@@ -139,16 +128,78 @@ namespace AmbientMusicGenerator
                 {
                     if (newSound.SoundClip.Equals(sound.SoundClip))
                     {
-                        Debug.Log($"Current song has sound {newSound.Name} (called {sound.Name}).");
+                        // Start transitioning existing sound.
+                        //Debug.Log($"Current song has sound {newSound.Name} (called {sound.Name}).");
+                        StartCoroutine(TransitionValues(sound, newSound, TrackTransitionTime));
                         soundFound = true;
                         break;
                     }
                 }
                 if (!soundFound)
                 {
-                    Debug.Log($"Current sound does not have sound {newSound.Name}.");
+                    // Log the new sound value and start fading it in.
+                    Debug.Log($"Current song does not have sound {newSound.Name}.");
+                    Sound temp = new Sound(newSound.Name, newSound.SoundClip);
+                    Sounds.Add(temp);
+                    StartCoroutine(TransitionValues(temp, newSound, TrackTransitionTime));
                 }
             }
+
+            // Look for sounds in the current song that need to be faded out of the new song.
+            foreach (Sound sound in Sounds)
+            {
+                bool soundFound = false;
+                foreach (Sound newSound in song.Sounds)
+                {
+                    if (newSound.SoundClip.Equals(sound.SoundClip))
+                    {
+                        soundFound = true;
+                        break;
+                    }
+                }
+                if (!soundFound)
+                {
+                    Debug.Log($"New song does not have sound {sound.Name}.");
+                    StartCoroutine(TransitionValues(sound, Sound.zeroSound, TrackTransitionTime));
+                }
+            }
+        }
+
+        /// <summary>
+        /// Coroutine to fade values over time.
+        /// </summary>
+        /// <returns></returns>
+        private IEnumerator TransitionValues(Sound curr, Sound target, float time)
+        {
+            float totalTime = 0;
+            float startingVolume = curr.Volume;
+            float startingPitch = curr.Pitch;
+            float startingVolumeFadeStrength = curr.VolumeFadeStrength;
+            float startingVolumeFadeFrequency = curr.VolumeFadeFrequency;
+            float startingPitchFadeStrength = curr.PitchFadeStrength;
+            float startingPitchFadeFrequency = curr.PitchFadeFrequency;
+
+            for (float t = 0; t <= 1; t += Time.deltaTime / time)
+            {
+                curr.Volume = Mathf.Lerp(startingVolume, target.Volume, t);
+                curr.Pitch = Mathf.Lerp(startingPitch, target.Pitch, t);
+                curr.VolumeFadeStrength = Mathf.Lerp(startingVolumeFadeStrength, target.VolumeFadeStrength, t);
+                curr.VolumeFadeFrequency = Mathf.Lerp(startingVolumeFadeFrequency, target.VolumeFadeFrequency, t);
+                curr.PitchFadeStrength = Mathf.Lerp(startingPitchFadeStrength, target.PitchFadeStrength, t);
+                curr.PitchFadeFrequency = Mathf.Lerp(startingPitchFadeFrequency, target.PitchFadeFrequency, t);
+
+                totalTime += Time.deltaTime;
+                yield return null;
+            }
+            curr.Volume = target.Volume;
+            curr.Pitch = target.Pitch;
+            curr.VolumeFadeStrength = target.VolumeFadeStrength;
+            curr.VolumeFadeFrequency = target.VolumeFadeFrequency;
+            curr.PitchFadeStrength = target.PitchFadeStrength;
+            curr.PitchFadeFrequency = target.PitchFadeFrequency;
+            totalTime += Time.deltaTime;
+
+            Debug.Log($"Finished transitioning {curr.Name} in {totalTime} seconds:\n{{\tVolume {startingVolume} -> {curr.Volume} ({target.Volume})\n\tVolume {startingPitch} -> {curr.Pitch} ({target.Pitch})\n}}");
         }
     }
 }

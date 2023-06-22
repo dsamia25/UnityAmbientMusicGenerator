@@ -14,12 +14,14 @@ namespace AmbientMusicGenerator
         public AudioClip SoundClip;
 
         [Range(0f, 1f)]
-        public float Volume = 1f;
+        public float Volume = 0f;
 
         [Range(0f, 3f)]
         public float Pitch = 1f;
 
         public bool Loop = true;
+
+        public static Sound zeroSound = new Sound();    // Default sound values.
 
         [Space]
         [Header("Rhythmic Fading")]
@@ -31,6 +33,22 @@ namespace AmbientMusicGenerator
 
         [HideInInspector]
         public AudioSource Source;
+
+        /// <summary>
+        /// Empty sound with sound and other values set to 0. Pitch default to 1.
+        /// </summary>
+        public Sound() { }
+
+        /// <summary>
+        /// Creates a new sound with volume set to 0.
+        /// </summary>
+        /// <param name="name"></param>
+        /// <param name="soundClip"></param>
+        public Sound (string name, AudioClip soundClip)
+        {
+            Name = name;
+            SoundClip = soundClip;
+        }
 
         /// <summary>
         /// Updates the AudioSource values to reflect the Sound settings.
