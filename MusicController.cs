@@ -10,10 +10,21 @@ namespace AmbientMusicGenerator
         public List<MusicPresetObject> Presets = new List<MusicPresetObject>();     // List of preset music mixes.
         public List<Sound> Sounds = new List<Sound>();                              // List of all sounds.
 
-        public bool PlayOnStart = true;
+        public bool PlayOnStart = true;                     // True if the controller should start playing automatically in Start().
+        public bool AutomaticallyTransitionSongs = true;    // True if the controller should transition between preset songs automatically.
+        public bool ShuffleSongs = true;                    // True if the controller should randomly pick presets, false if it should go in order.
         private bool isPlaying = false;
 
-        public float TrackTransitionTime = 3f;          // How long it takes to change tracks.
+        public bool UseTransitionTrackFrequencyRange = true;
+        public Vector2 TransitionTrackFrequencyRange = new Vector2(8f, 12f);     // Range of times to start transitioning songs.
+        public float TransitionTrackFrequency = 8f;
+
+        public bool UseTrackFadeTimeRange = true;                     // If the track transition time should use a random range.
+        public Vector2 TrackFadeTimeRange = new Vector2(4f, 8f);      // Range of how long it can take to change tracks.
+        public float TrackFadeTime = 3f;                              // How long it takes to change tracks.
+
+        private int _currSongIndex = 0;
+        private float _currTransitionSongCountdown = 0;                    // How long until the next song transition.
 
         public void Awake()
         {
@@ -28,6 +39,18 @@ namespace AmbientMusicGenerator
 
         private void Start()
         {
+            if (AutomaticallyTransitionSongs)
+            {
+                // Find a new TransitionTrackFrequency value if enabled.
+                if (UseTransitionTrackFrequencyRange)
+                {
+                    TransitionTrackFrequency = UnityEngine.Random.Range(TransitionTrackFrequencyRange.x, TransitionTrackFrequencyRange.y);
+                }
+
+                // Reset countdown.
+                _currTransitionSongCountdown = TransitionTrackFrequency;
+            }
+
             // Start music automatically if enabled.
             if (PlayOnStart)
             {
@@ -37,10 +60,43 @@ namespace AmbientMusicGenerator
 
         private void Update()
         {
-            // Updates each audio source of any changes.
-            foreach (Sound sound in Sounds)
+            if (isPlaying)
             {
-                sound.UpdateSource();
+                // Updates each audio source of any changes.
+                foreach (Sound sound in Sounds)
+                {
+                    sound.UpdateSource();
+                }
+
+                if (AutomaticallyTransitionSongs)
+                {
+                    if (_currTransitionSongCountdown <= 0)
+                    {
+                        // Pick new song.
+                        MusicPresetObject song = GetNextSong();
+
+                        // Find a new TrackFadeTime value if enabled.
+                        if (UseTrackFadeTimeRange)
+                        {
+                            TrackFadeTime = UnityEngine.Random.Range(TrackFadeTimeRange.x, TrackFadeTimeRange.y);
+                        }
+
+                        // Start loading song.
+                        LoadSong(song);
+
+                        // Find a new TransitionTrackFrequency value if enabled.
+                        if (UseTransitionTrackFrequencyRange)
+                        {
+                            TransitionTrackFrequency = UnityEngine.Random.Range(TransitionTrackFrequencyRange.x, TransitionTrackFrequencyRange.y);
+                        }
+
+                        // Reset countdown.
+                        _currTransitionSongCountdown = TransitionTrackFrequency;
+                    } else
+                    {
+                        _currTransitionSongCountdown -= Time.deltaTime;
+                    }
+                }
             }
         }
 
@@ -116,6 +172,23 @@ namespace AmbientMusicGenerator
         }
 
         /// <summary>
+        /// Gets the next song to play.
+        /// </summary>
+        /// <returns></returns>
+        private MusicPresetObject GetNextSong()
+        {
+            if (ShuffleSongs)
+            {
+                _currSongIndex = UnityEngine.Random.Range(0, Presets.Count);
+            }
+            else
+            {
+                _currSongIndex = ++_currSongIndex % Presets.Count;
+            }
+            return Presets[_currSongIndex];
+        }
+
+        /// <summary>
         /// Switches the 
         /// </summary>
         /// <param name="song"></param>
@@ -130,18 +203,22 @@ namespace AmbientMusicGenerator
                     {
                         // Start transitioning existing sound.
                         //Debug.Log($"Current song has sound {newSound.Name} (called {sound.Name}).");
-                        StartCoroutine(TransitionValues(sound, newSound, TrackTransitionTime));
+                        StartCoroutine(TransitionValues(sound, newSound, TrackFadeTime));
                         soundFound = true;
                         break;
                     }
                 }
                 if (!soundFound)
                 {
-                    // Log the new sound value and start fading it in.
+                    // If this sound is not already in the list of sounds, add it and create an AudioSource.
                     Debug.Log($"Current song does not have sound {newSound.Name}.");
-                    Sound temp = new Sound(newSound.Name, newSound.SoundClip);
-                    Sounds.Add(temp);
-                    StartCoroutine(TransitionValues(temp, newSound, TrackTransitionTime));
+                    Sound sound = new Sound(newSound.Name, newSound.SoundClip);
+                    Sounds.Add(sound);
+                    var audioSource = gameObject.AddComponent<AudioSource>();
+                    audioSource.clip = sound.SoundClip;
+                    sound.Source = audioSource;
+                    sound.UpdateSource();
+                    StartCoroutine(TransitionValues(sound, newSound, TrackFadeTime));
                 }
             }
 
@@ -160,7 +237,7 @@ namespace AmbientMusicGenerator
                 if (!soundFound)
                 {
                     Debug.Log($"New song does not have sound {sound.Name}.");
-                    StartCoroutine(TransitionValues(sound, Sound.zeroSound, TrackTransitionTime));
+                    StartCoroutine(TransitionValues(sound, Sound.zeroSound, TrackFadeTime));
                 }
             }
         }
