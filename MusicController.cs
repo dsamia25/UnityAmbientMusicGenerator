@@ -1,7 +1,6 @@
 using System;
 using System.Collections;
 using System.Collections.Generic;
-using UnityEditor;
 using UnityEngine;
 using UnityEngine.Audio;
 
@@ -42,9 +41,9 @@ namespace AmbientMusicGenerator
         public float TrackFadeTime = 3f;                                // How long it takes to change tracks.
 
         [HideInInspector]
-        internal string lastInputPresetName = "";                       // The last input preset name.
+        public string lastInputPresetName = "";                       // The last input preset name.
         [HideInInspector]                   
-        internal string lastInputSavePresetPath = "";                   // The last input save path for presets.
+        public string lastInputSavePresetPath = "";                   // The last input save path for presets.
 
 
         private int _currSongIndex = 0;
@@ -311,57 +310,6 @@ namespace AmbientMusicGenerator
             }
         }
         #endregion
-
-        /// <summary>
-        /// Saves the current Sound values as a new preset.
-        /// </summary>
-        public void SavePreset(string presetName, string savePath)
-        {
-            // Save last used values to display in inspector.
-            lastInputPresetName = presetName;
-            lastInputSavePresetPath = savePath;
-
-            Debug.Log($"Saving a new preset.");
-            MusicPresetObject preset = ScriptableObject.CreateInstance<MusicPresetObject>();
-
-            // Make the combined asset path.
-            string path = savePath + "/" + presetName;
-
-            // Check if there is already as asset with that name. If so iterate up numbers until there is a unique name.
-            if (AssetDatabase.LoadAssetAtPath(path + ".asset", typeof(MusicPresetObject)) != null)
-            {
-                int i = 0;
-
-                // Iterate up the count until there is a unique number.
-                while (AssetDatabase.LoadAssetAtPath(path + (++i).ToString() + ".asset", typeof(MusicPresetObject)) != null) ;
-
-                // Add the unique number to the name.
-                presetName += i.ToString();
-                path += i.ToString();
-            }
-
-            try
-            {
-                // Create the new ScriptableObject in the database.
-                AssetDatabase.CreateAsset(preset, path + ".asset");
-            } catch (UnityException e)
-            {
-                Debug.LogWarning($"Error saving preset. Make sure the path exists: {e}");
-                return;
-            }
-
-            preset.Name = presetName;
-            preset.Mixer = Mixer;
-            // Save the information about the asset.
-            foreach (Sound sound in Sounds)
-            {
-                preset.Sounds.Add(new Sound(sound));
-            }
-
-            // Save the modified asset.
-            AssetDatabase.SaveAssets();
-            AssetDatabase.Refresh();
-        }
 
         /// <summary>
         /// Removes the AudioSource component associated with a specific sound.

@@ -22,4 +22,6 @@ AudioMixer:
 - Changing Presets will change the AudioMixer in MusicController to the Preset's mixer.
 - Setting OverridePresetSongMixer to true in MusicController will stop Presets from changing the AudioMixer.
 
+Editor Tools:
+- To enable custom UI elements, create a separate Assembly in the EditorTools file that is set to only the 'Editor' platform.
 
